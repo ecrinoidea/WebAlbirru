@@ -22,6 +22,7 @@ import {
   INITIAL_INVOICES,
   INITIAL_HONOR_SUMMARIES,
 } from '../data/initialData';
+import { getRemoteState, saveRemoteState } from '../lib/backend';
 
 interface ToastState {
   id: number;
@@ -171,6 +172,39 @@ export const BimbelProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return saved ? JSON.parse(saved) : INITIAL_HONOR_SUMMARIES;
   });
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const syncRemoteData = async () => {
+      try {
+        const remote = await getRemoteState<{
+          tentors?: TentorProfile[];
+          groups?: StudyGroup[];
+          availabilities?: TentorAvailability[];
+          reports?: TeachingReport[];
+          invoices?: SppInvoice[];
+          honorSummaries?: TentorHonorSummary[];
+        }>();
+
+        if (!isMounted || !remote) return;
+
+        if (Array.isArray(remote.tentors) && remote.tentors.length > 0) setTentors(remote.tentors);
+        if (Array.isArray(remote.groups) && remote.groups.length > 0) setGroups(remote.groups);
+        if (Array.isArray(remote.availabilities) && remote.availabilities.length > 0) setAvailabilities(remote.availabilities);
+        if (Array.isArray(remote.reports) && remote.reports.length > 0) setReports(remote.reports);
+        if (Array.isArray(remote.invoices) && remote.invoices.length > 0) setInvoices(remote.invoices);
+        if (Array.isArray(remote.honorSummaries) && remote.honorSummaries.length > 0) setHonorSummaries(remote.honorSummaries);
+      } catch {
+        // Ignore if TiDB API is temporarily unavailable.
+      }
+    };
+
+    syncRemoteData();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   // Modal & Toast
   const [photoModal, setPhotoModal] = useState<{ url: string; caption?: string; title?: string } | null>(null);
   const [toast, setToast] = useState<ToastState | null>(null);
@@ -207,6 +241,21 @@ export const BimbelProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => {
     localStorage.setItem('albirru_honors', JSON.stringify(honorSummaries));
   }, [honorSummaries]);
+
+  useEffect(() => {
+    const snapshot = {
+      tentors,
+      groups,
+      availabilities,
+      reports,
+      invoices,
+      honorSummaries,
+    };
+
+    saveRemoteState(snapshot).catch(() => {
+      // Silently ignore backend unavailability while using localStorage-first mode.
+    });
+  }, [tentors, groups, availabilities, reports, invoices, honorSummaries]);
 
   const showToast = (message: string, type: 'success' | 'info' | 'warning' = 'success') => {
     setToast({ id: Date.now(), message, type });
@@ -246,11 +295,7 @@ export const BimbelProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return { success: false, message: 'Username dan kata sandi wajib diisi!' };
     }
 
-    // 1. Check Admin
-    if (
-      (!requestedRole || requestedRole === 'admin') &&
-      trimmedUsername.toLowerCase() === 'admin'
-    ) {
+    if ((!requestedRole || requestedRole === 'admin') && trimmedUsername.toLowerCase() === 'admin') {
       if (cleanPassword === 'admin123') {
         const user: AuthUser = {
           role: 'admin',
@@ -266,10 +311,7 @@ export const BimbelProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
     }
 
-    // 2. Check Tentor
-    const foundTentor = tentors.find(
-      (t) => t.username.toLowerCase() === trimmedUsername.toLowerCase()
-    );
+    const foundTentor = tentors.find((t) => t.username.toLowerCase() === trimmedUsername.toLowerCase());
 
     if (foundTentor) {
       if (foundTentor.password === cleanPassword) {
@@ -289,7 +331,6 @@ export const BimbelProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
     }
 
-    // If role requested was admin but username wasn't admin
     if (requestedRole === 'admin') {
       return { success: false, message: 'Akun admin dengan username tersebut tidak ditemukan!' };
     }
@@ -302,11 +343,9 @@ export const BimbelProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     showToast('Anda berhasil keluar dari sistem.', 'info');
   };
 
-  // Admin Feature: Register New Tentor Account
   const registerTentorAccount = (data: NewTentorInput) => {
     const trimmedUsername = data.username.trim().toLowerCase();
 
-    // Validations
     if (!trimmedUsername) {
       return { success: false, message: 'Username wajib diisi!' };
     }
@@ -343,7 +382,6 @@ export const BimbelProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     setTentors((prev) => [...prev, newTentor]);
 
-    // Create Initial Honor Summary
     const newHonorSummary: TentorHonorSummary = {
       tentorId: newId,
       tentorName: newTentor.name,
@@ -357,7 +395,6 @@ export const BimbelProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
     setHonorSummaries((prev) => [...prev, newHonorSummary]);
 
-    // Create default ready availability slots for common days
     const defaultDays: DayOfWeek[] = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'];
     const newAvails: TentorAvailability[] = [];
     defaultDays.forEach((day) => {
@@ -389,7 +426,6 @@ export const BimbelProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       })
     );
 
-    // If name or rate updated, update in honor summary too
     if (updates.name || updates.ratePerSession || updates.bankName || updates.accountNumber) {
       setHonorSummaries((prev) =>
         prev.map((h) => {
@@ -412,7 +448,6 @@ export const BimbelProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const deleteTentorAccount = (tentorId: string) => {
-    // Check if tentor has assigned groups
     const assigned = groups.find((g) => g.tentorId === tentorId);
     if (assigned) {
       showToast(`Tidak dapat menghapus tentor karena masih mengampu kelompok "${assigned.name}". Pindahkan kelompok terlebih dahulu.`, 'warning');
@@ -427,7 +462,6 @@ export const BimbelProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return { success: true, message: 'Akun tentor dihapus.' };
   };
 
-  // Student and Group Actions
   const addStudentToGroup = (groupId: string, studentData: Omit<Student, 'id' | 'joinedDate'>): boolean => {
     const targetGroup = groups.find((g) => g.id === groupId);
     if (!targetGroup) return false;
