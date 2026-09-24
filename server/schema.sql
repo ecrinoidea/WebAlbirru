@@ -1,0 +1,9 @@
+CREATE TABLE IF NOT EXISTS app_state (
+  state_key VARCHAR(64) PRIMARY KEY,
+  state_json JSON NOT NULL,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+INSERT INTO app_state (state_key, state_json)
+VALUES ('albirru', JSON_OBJECT())
+ON DUPLICATE KEY UPDATE state_key = state_key;
