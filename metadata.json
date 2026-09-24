@@ -1,0 +1,6 @@
+{
+  "name": "Bimbel Albirru Junior - Portal Terpadu",
+  "description": "Portal terpadu Bimbel Albirru Junior dengan Dashboard Admin dan Dashboard Tentor berpalet warna kosmik.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

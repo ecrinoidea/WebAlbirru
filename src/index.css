@@ -1,0 +1,34 @@
+@import "tailwindcss";
+
+@theme {
+  --color-cosmic-planetary: #334EAC;
+  --color-cosmic-galaxy: #081F5C;
+  --color-cosmic-universe: #7096D1;
+  --color-cosmic-venus: #BAD6EB;
+  --color-cosmic-sky: #D0E3FF;
+  --color-cosmic-meteor: #F7F2EB;
+  --color-cosmic-milkyway: #FFF9F0;
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  background-color: #FFF9F0;
+  color: #081F5C;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #F7F2EB;
+}
+::-webkit-scrollbar-thumb {
+  background: #BAD6EB;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #7096D1;
+}
